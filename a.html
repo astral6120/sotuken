@@ -81,13 +81,13 @@
             await fetchAndRenderChart();
 
             // 5秒ごとにグラフを自動更新
-            setInterval(async function () {
-                const chartStatus = Chart.getChart("myChart");
-                if (chartStatus != undefined) {
-                    chartStatus.destroy(); // 古いグラフを一度破棄
-                }
-                await fetchAndRenderChart();
-            }, 5000);
+            // setInterval(async function () {
+            // const chartStatus = Chart.getChart("myChart");
+            // if (chartStatus != undefined) {
+            // chartStatus.destroy(); // 古いグラフを一度破棄
+
+            // await fetchAndRenderChart();
+            // }, 5000);
         }
 
         // データをGASから取得してグラフを描画する関数
