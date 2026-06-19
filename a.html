@@ -4,31 +4,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>リアルタイムグラフ画面</title>
+    <title>現在の混雑状況</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f4f7f6;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
+            margin: 20px;
+            background-color: #f5f7fa;
         }
 
         .container {
+            max-width: 600px;
+            margin: 0 auto;
             background: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 900px;
-            width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
 
         h1 {
             text-align: center;
+            font-size: 1.5rem;
             color: #333;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -36,95 +35,99 @@
 <body>
 
     <div class="container">
-        <h1>スプレッドシート同期 リアルタイムグラフ</h1>
+        <h1>現在の混雑状況</h1>
         <canvas id="myChart"></canvas>
     </div>
 
     <script>
-        // ★ここにGASで発行された「ウェブアプリのURL」を貼り付けてください
-        const gasUrl = "https://script.google.com/macros/s/AKfycbwcGpE-elLWC8w7G_8dAIX1Yqt_tCwyL2QGkoiuacB9opeLuW04tbr7rewLZyM05JK1DA/exec";
+        // 設定値
+        const liffId = "2010448189-uyZ55xBO";
+        const gasUrl = "https://script.google.com/macros/s/AKfycbyqiQ79HIhe3w1msz5KOgVyrou_QVvooVaVsU0RJo4jyB4sTK5wHln5kTeI5ZZMGkDN4g/exec"; // 👈 ここにご自身のGASのURLを貼り付けてください
 
-        // データをGASから取得してグラフを描画する関数
+        // LIFF初期化とアクセス制限の関数
+        async function initializeLiff() {
+            try {
+                // LIFFの初期化
+                await liff.init({ liffId: liffId });
+
+                // 【重要】LINEアプリ内（LIFF環境）から開かれているかチェック
+                if (!liff.isInClient()) {
+                    // LINE以外（普通のブラウザなど）から開かれた場合は、画面をロックする
+                    document.body.innerHTML = `
+                <div style="text-align:center; padding:50px; font-weight:bold; color:#ff4d4f; font-family:sans-serif;">
+                    <h2 style="font-size: 1.8rem; margin-bottom: 10px;">アクセスエラー</h2>
+                    <p style="font-size: 1rem; color: #666;">このページはLINE公式アカウントからのみ閲覧可能です。</p>
+                </div>`;
+                    return;
+                }
+
+                // LINEから開かれていれば、グラフの描画処理をスタート
+                fetchAndRenderChart();
+
+                // 5秒ごとのリアルタイム自動更新タイマーを起動
+                setInterval(function () {
+                    const chartStatus = Chart.getChart("myChart");
+                    if (chartStatus != undefined) {
+                        chartStatus.destroy(); // 古いグラフを破棄して再描画
+                    }
+                    fetchAndRenderChart();
+                }, 5000);
+
+            } catch (error) {
+                console.error("LIFFの初期化に失敗しました:", error);
+            }
+        }
+
+        // GASからデータを取得してグラフを描画する関数
         async function fetchAndRenderChart() {
             try {
                 const response = await fetch(gasUrl);
                 const data = await response.json();
 
-                // 1. 横軸（ラベル）に使う「時間」のデータを取得
-                const labels = data.map(item => item["時間"]);
+                // データの並び替え（必要に応じて時間を古い順にする処理など）
+                data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-                // 2. 各列のデータをそれぞれ取得
-                const dataA = data.map(item => item["A(1年)"]);
-                const dataB = data.map(item => item["B(2年)"]);
-                const dataC = data.map(item => item["C(高学年)"]);
-                const dataD = data.map(item => item["D(1年女子)"]);
-                const dataE = data.map(item => item["E(女子)"]);
+                const labels = data.map(item => {
+                    const date = new Date(item.timestamp);
+                    return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                });
+                const counts = data.map(item => item.count);
 
-                // 3. グラフを描画
                 const ctx = document.getElementById('myChart').getContext('2d');
                 new Chart(ctx, {
-                    type: 'line', // 折れ線グラフ（棒グラフにするなら 'bar'）
+                    type: 'line',
                     data: {
-                        labels: labels, // 横軸（時間）
-                        datasets: [
-                            {
-                                label: 'A(1年)',
-                                data: dataA,
-                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                                borderColor: 'rgba(255, 99, 132, 1)',
-                                borderWidth: 2,
-                                tension: 0.1
-                            },
-                            {
-                                label: 'B(2年)',
-                                data: dataB,
-                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                borderColor: 'rgba(54, 162, 235, 1)',
-                                borderWidth: 2,
-                                tension: 0.1
-                            },
-                            {
-                                label: 'C(高学年)',
-                                data: dataC,
-                                backgroundColor: 'rgba(255, 206, 86, 0.2)',
-                                borderColor: 'rgba(255, 206, 86, 1)',
-                                borderWidth: 2,
-                                tension: 0.1
-                            },
-                            {
-                                label: 'D(1年女子)',
-                                data: dataD,
-                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                                borderColor: 'rgba(75, 192, 192, 1)',
-                                borderWidth: 2,
-                                tension: 0.1
-                            },
-                            {
-                                label: 'E(女子)',
-                                data: dataE,
-                                backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                                borderColor: 'rgba(153, 102, 255, 1)',
-                                borderWidth: 2,
-                                tension: 0.1
-                            }
-                        ]
+                        labels: labels,
+                        datasets: [{
+                            label: '混雑度（人数）',
+                            data: counts,
+                            borderColor: '#06c755', // LINEカラー風の緑
+                            backgroundColor: 'rgba(6, 199, 85, 0.1)',
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            tension: 0.3,
+                            fill: true
+                        }]
                     },
                     options: {
                         responsive: true,
                         scales: {
                             y: {
-                                beginAtZero: true // Y軸を0からスタート
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
                             }
                         }
                     }
                 });
             } catch (error) {
-                console.error("データの取得に失敗しました:", error);
+                console.error("データの取得またはグラフの描画に失敗しました:", error);
             }
         }
 
-        // ページが開かれたときに実行
-        fetchAndRenderChart();
+        // ページが読み込まれたら、まずLIFFのセキュリティチェックを実行
+        initializeLiff();
     </script>
 
 </body>
