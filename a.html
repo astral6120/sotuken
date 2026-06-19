@@ -47,7 +47,7 @@
         // ★ここにGASで発行された「ウェブアプリのURL」を貼り付けてください
         const gasUrl = "https://script.google.com/macros/s/AKfycbyqiQ79HIhe3w1msz5KOgVyrou_QVvooVaVsU0RJo4jyB4sTK5wHln5kTeI5ZZMGkDN4g/exec";
 
-        // ★LINE以外からのアクセスをブロックするセキュリティチェック
+        // LINE以外からのアクセスをブロックするセキュリティチェック
         async function initializeLiff() {
             try {
                 // LIFFの初期化
@@ -74,20 +74,9 @@
             }
         }
 
-        // ーーー ここから下は元のロジックをそのまま維持 ーーー
-
-        // 初回実行と定期更新を管理する関数
+        // 初回実行のみを行う関数（すぐ消えるバグ対策で自動更新は止めています）
         async function main() {
             await fetchAndRenderChart();
-
-            // 5秒ごとにグラフを自動更新
-            // setInterval(async function () {
-            // const chartStatus = Chart.getChart("myChart");
-            // if (chartStatus != undefined) {
-            // chartStatus.destroy(); // 古いグラフを一度破棄
-
-            // await fetchAndRenderChart();
-            // }, 5000);
         }
 
         // データをGASから取得してグラフを描画する関数
@@ -109,7 +98,7 @@
                 // 3. グラフを描画
                 const ctx = document.getElementById('myChart').getContext('2d');
                 new Chart(ctx, {
-                    type: 'line', // 折れ線グラフ（棒グラフにするなら 'bar'）
+                    type: 'line', // 折れ線グラフ
                     data: {
                         labels: labels, // 横軸（時間）
                         datasets: [
